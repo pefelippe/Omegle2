@@ -48,7 +48,6 @@ const Video = (props) => {
   return <StyledVideo playsInline autoPlay ref={ref} />;
 };
 
-
 function Room(props) {
   const [peers, setPeers] = useState([]);
   const socketRef = useRef();
