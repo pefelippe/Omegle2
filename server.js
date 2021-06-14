@@ -13,8 +13,9 @@ const roomID = socketToRoom[socket.id];
 const port = process.env.PORT || 8000;
 
 io.on("connection", (socket) => {
+  
   socket.on("join", (roomID) => {
-    // evitar repetição
+    //  repetição
     if (users[roomID]) {
       users[roomID].push(socket.id);
     } else {
@@ -27,22 +28,21 @@ io.on("connection", (socket) => {
     socket.emit("all users", activeUsers);
   });
 
-  socket.on("sending signal", (payload) => {
-    io.to(payload.userToSignal).emit("user joined", {
+  socket.on("creatingSignal", (payload) => {
+    io.to(payload.userToSignal).emit("joinUser", {
       signal: payload.signal,
       callerID: payload.callerID,
     });
   });
 
-  socket.on("returning signal", (payload) => {
-    io.to(payload.callerID).emit("receiving returned signal", {
+  socket.on("returningSignal", (payload) => {
+    io.to(payload.callerID).emit("receivingReturnSignal", {
       signal: payload.signal,
       id: socket.id,
     });
   });
 
   socket.on("disconnect", () => {
-
     let room = users[roomID];
 
     if (room) {
@@ -51,6 +51,5 @@ io.on("connection", (socket) => {
     }
   });
 });
-
 
 server.listen(port, () => console.log(`server is running on port ${port}`));

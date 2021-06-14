@@ -6,15 +6,15 @@ import styled from "styled-components";
 
 const Container = styled.div`
   height: 100vh;
-  margin: auto;
-  flex-wrap: wrap;
 `;
 
 const StyledVideo = styled.video`
   margin: 10px;
   height: 40%;
   width: 50%;
-  border-radius: 45px;
+  display: flex;
+  flex-direcion: row;
+  border-radius: 25px;
 `;
 
 const Content = styled.div`
@@ -29,6 +29,11 @@ const Header = styled.div`
   align-items: center;
   width: 100vw;
   border-bottom: 2px solid black;
+  h1 {
+    &:hover {
+      color: #af5a76;
+    }
+  }
 `;
 
 const StyledLink = styled(Link)`
@@ -48,25 +53,68 @@ const Video = (props) => {
   return <StyledVideo playsInline autoPlay ref={ref} />;
 };
 
+function createPeer(socketRef, userToSignal, callerID, stream) {
+  const peer = new Peer({
+    initiator: true,
+    trickle: false,
+    stream,
+  });
+
+  peer.on("signal", (signal) => {
+    socketRef.current.emit("creatingSignal", {
+      userToSignal,
+      callerID,
+      signal,
+    });
+  });
+
+  return peer;
+}
+
+function addPeer(socketRef, incomingSignal, callerID, stream) {
+  const peer = new Peer({
+    initiator: false,
+    trickle: false,
+    stream,
+  });
+
+  peer.on("signal", (signal) => {
+    socketRef.current.emit("returningSignal", { signal, callerID });
+  });
+
+  peer.signal(incomingSignal);
+
+  return peer;
+}
+
 function Room(props) {
   const [peers, setPeers] = useState([]);
-  const socketRef = useRef();
   const userVideo = useRef();
+
+  const socketRef = useRef();
   const peersRef = useRef([]);
 
   const roomID = props.match.params.id;
 
   useEffect(() => {
-    socketRef.current = io.connect("/");
+    socketRef.current = io.connect("/"); // Conecta com o server
+
     navigator.mediaDevices
       .getUserMedia({ video: true, audio: true })
       .then((stream) => {
         userVideo.current.srcObject = stream;
+
         socketRef.current.emit("join", roomID);
+
         socketRef.current.on("all users", (users) => {
           const peers = [];
           users.forEach((userID) => {
-            const peer = createPeer(userID, socketRef.current.id, stream);
+            const peer = createPeer(
+              socketRef,
+              userID,
+              socketRef.current.id,
+              stream
+            );
             peersRef.current.push({
               peerID: userID,
               peer,
@@ -76,8 +124,14 @@ function Room(props) {
           setPeers(peers);
         });
 
-        socketRef.current.on("user joined", (payload) => {
-          const peer = addPeer(payload.signal, payload.callerID, stream);
+        socketRef.current.on("joinUser", (payload) => {
+          const peer = addPeer(
+            socketRef,
+            payload.signal,
+            payload.callerID,
+            stream
+          );
+
           peersRef.current.push({
             peerID: payload.callerID,
             peer,
@@ -86,46 +140,12 @@ function Room(props) {
           setPeers((users) => [...users, peer]);
         });
 
-        socketRef.current.on("receiving returned signal", (payload) => {
+        socketRef.current.on("receivingReturnSignal", (payload) => {
           const item = peersRef.current.find((p) => p.peerID === payload.id);
           item.peer.signal(payload.signal);
         });
       });
   }, []);
-
-  function createPeer(userToSignal, callerID, stream) {
-    const peer = new Peer({
-      initiator: true,
-      trickle: false,
-      stream,
-    });
-
-    peer.on("signal", (signal) => {
-      socketRef.current.emit("sending signal", {
-        userToSignal,
-        callerID,
-        signal,
-      });
-    });
-
-    return peer;
-  }
-
-  function addPeer(incomingSignal, callerID, stream) {
-    const peer = new Peer({
-      initiator: false,
-      trickle: false,
-      stream,
-    });
-
-    peer.on("signal", (signal) => {
-      socketRef.current.emit("returning signal", { signal, callerID });
-    });
-
-    peer.signal(incomingSignal);
-
-    return peer;
-  }
 
   return (
     <Container>

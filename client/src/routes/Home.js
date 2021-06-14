@@ -22,8 +22,10 @@ const StyledButton = styled.div`
   background-color: palevioletred;
   font-size: 54px;
   padding: 20px;
-  color: #fff;
   border: 3px solid black;
+  &:hover {
+    background-color: #af5a76;
+  }
 `;
 
 const StyledLink = styled(Link)`
